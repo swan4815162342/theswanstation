@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Swan Station - System 4</title>
+    <style>
+        /* CRT & Terminal Aesthetics */
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            background-color: #050505;
+            color: #1aff1a;
+            font-family: 'VT323', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            text-shadow: 0 0 5px #1aff1a;
+        }
+
+        /* The CRT "Scanline" Overlay */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 10;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Screen Flicker */
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            5% { opacity: 0.95; }
+            10% { opacity: 0.9; }
+            15% { opacity: 0.95; }
+            100% { opacity: 1; }
+        }
+        #game-container {
+            animation: flicker 0.15s infinite;
+            text-align: center;
+        }
+
+        #timer {
+            font-size: 10rem;
+            letter-spacing: 10px;
+            margin-bottom: 10px;
+            transition: color 0.3s;
+        }
+
+        #status-msg {
+            height: 1.5rem;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        input {
+            background: rgba(0, 40, 0, 0.3);
+            border: 2px solid #1aff1a;
+            color: #1aff1a;
+            font-family: 'VT323', monospace;
+            font-size: 2.5rem;
+            padding: 10px;
+            text-align: center;
+            outline: none;
+            width: 450px;
+            box-shadow: 0 0 15px rgba(26, 255, 26, 0.2);
+        }
+
+        button {
+            margin-top: 20px;
+            background: #1aff1a;
+            color: #050505;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1.8rem;
+            font-family: 'VT323', monospace;
+            cursor: pointer;
+            box-shadow: 0 0 10px #1aff1a;
+        }
+
+        button:active { transform: translateY(2px); }
+
+        /* Error Shake Animation */
+        .shake {
+            animation: shake 0.4s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* Failure State */
+        .system-failure {
+            background-color: #440000 !important;
+            animation: flash 0.3s infinite !important;
+        }
+        @keyframes flash {
+            0% { background-color: #660000; }
+            50% { background-color: #220000; }
+        }
+
+        #hieroglyphs {
+            display: none;
+            font-size: 6rem;
+            color: white;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="hieroglyphs">𓀀 𓀁 𓀃 𓀅 𓀇</div>
+        <div id="status-msg">STATION 4: THE SWAN</div>
+        <div id="timer">108:00</div>
+        
+        <div id="input-area">
+            <input type="text" id="sequence" placeholder=">: ENTER SEQUENCE" autocomplete="off">
+            <br>
+            <button onclick="checkSequence()">EXECUTE</button>
+        </div>
+    </div>
+
+    <div id="game-over" class="hidden">
+        <h1 style="font-size: 5rem; color: #fff;">SYSTEM FAILURE</h1>
+        <button onclick="resetGame()">REBOOT SYSTEM</button>
+    </div>
+
+    <script>
+        let timeLeft = 108 * 60;
+        let timerInterval;
+        const correctSequence = "4 8 15 16 23 42";
+
+        const timerDisplay = document.getElementById('timer');
+        const inputField = document.getElementById('sequence');
+        const statusMsg = document.getElementById('status-msg');
+        const body = document.body;
+
+        function updateTimer() {
+            timeLeft--;
+            let mins = Math.floor(timeLeft / 60);
+            let secs = timeLeft % 60;
+
+            timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            // Alarm visual: 4 minutes left
+            if (timeLeft <= 240 && timeLeft > 0) {
+                timerDisplay.style.color = "#ff3333";
+                statusMsg.textContent = "CRITICAL: INPUT REQUIRED";
+            } else {
+                timerDisplay.style.color = "#1aff1a";
+            }
+
+            if (timeLeft <= 0) triggerFailure();
+        }
+
+        function checkSequence() {
+            if (inputField.value.trim() === correctSequence) {
+                timeLeft = 108 * 60;
+                inputField.value = "";
+                statusMsg.textContent = "SEQUENCE ACCEPTED: COUNTER RESET";
+                setTimeout(() => { statusMsg.textContent = "STATION 4: THE SWAN"; }, 3000);
+            } else {
+                inputField.classList.add('shake');
+                statusMsg.textContent = "INVALID SEQUENCE";
+                inputField.value = "";
+                setTimeout(() => { 
+                    inputField.classList.remove('shake');
+                }, 400);
+            }
+        }
+
+        function triggerFailure() {
+            clearInterval(timerInterval);
+            body.classList.add('system-failure');
+            document.getElementById('hieroglyphs').style.display = 'block';
+            document.getElementById('game-container').classList.add('hidden');
+            document.getElementById('game-over').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            timeLeft = 108 * 60;
+            body.classList.remove('system-failure');
+            document.getElementById('hieroglyphs').style.display = 'none';
+            document.getElementById('game-container').classList.remove('hidden');
+            document.getElementById('game-over').classList.add('hidden');
+            statusMsg.textContent = "SYSTEM REBOOTED";
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        inputField.addEventListener("keypress", (e) => { if (e.key === "Enter") checkSequence(); });
+        
+        startTimer();
+    </script>
+</body>
+</html>
